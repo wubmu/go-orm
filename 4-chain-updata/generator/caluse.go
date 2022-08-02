@@ -9,6 +9,7 @@ type Clause struct {
 
 type Type int
 
+// Support types for Clause
 const (
 	INSERT Type = iota
 	VALUES
@@ -16,6 +17,9 @@ const (
 	LIMIT
 	WHERE
 	ORDERBY
+	UPDATE
+	DELETE
+	COUNT
 )
 
 //Set 方法根据 Type 调用对应的 generator，生成该子句对应的 SQL 语句。
