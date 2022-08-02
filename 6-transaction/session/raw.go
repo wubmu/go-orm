@@ -3,7 +3,7 @@ package session
 import (
 	"database/sql"
 	"orm/dialect"
-	clause "orm/generator"
+	"orm/generator"
 	"orm/log"
 	"orm/schema"
 	"strings"
@@ -16,6 +16,7 @@ import (
 type Session struct {
 	db       *sql.DB
 	dialect  dialect.Dialect
+	tx       *sql.Tx
 	refTable *schema.Schema
 	clause   clause.Clause
 	sql      strings.Builder
@@ -29,21 +30,39 @@ func New(db *sql.DB, dialect dialect.Dialect) *Session {
 	}
 }
 
-func (s *Session) Clear() {
-	s.sql.Reset()
-	s.sqlVars = nil
+type CommonDB interface {
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
+	Exec(query string, args ...interface{}) (sql.Result, error)
 }
 
-func (s *Session) DB() *sql.DB {
+var _ CommonDB = (*sql.DB)(nil)
+var _ CommonDB = (*sql.Tx)(nil)
+
+// DB returns tx if a tx begins. otherwise return *sql.DB
+func (s *Session) DB() CommonDB {
+	if s.tx != nil {
+		return s.tx
+	}
 	return s.db
 }
 
-func (s *Session) Raw(sql string, values ...interface{}) *Session {
-	s.sql.WriteString(sql)
-	s.sql.WriteString(" ")
-	s.sqlVars = append(s.sqlVars, values...)
-	return s
+func (s *Session) Clear() {
+	s.sql.Reset()
+	s.sqlVars = nil
+	s.clause = clause.Clause{}
 }
+
+//func (s *Session) DB() *sql.DB {
+//	return s.db
+//}
+
+//func (s *Session) Raw(sql string, values ...interface{}) *Session {
+//	s.sql.WriteString(sql)
+//	s.sql.WriteString(" ")
+//	s.sqlVars = append(s.sqlVars, values...)
+//	return s
+//}
 
 // 执行sql语句
 func (s *Session) Exec() (result sql.Result, err error) {
@@ -80,4 +99,11 @@ func (s *Session) QueryRows() (rows *sql.Rows, err error) {
 		log.Error(err)
 	}
 	return
+}
+
+func (s *Session) Raw(sql string, values ...interface{}) *Session {
+	s.sql.WriteString(sql)
+	s.sql.WriteString(" ")
+	s.sqlVars = append(s.sqlVars, values...)
+	return s
 }
