@@ -61,3 +61,10 @@ GeeORM 之前的操作均是执行完即自动提交的，每个操作是相互�
 为 `sql.Tx` 执行。在 `Session` 结构体中新增成员变量 `tx *sql.Tx`，
 当 `tx` 不为空时，则使用 `tx` 执行 SQL 语句，否则使用 db 执行 SQL 语句。
 这样既兼容了原有的执行方式，又提供了对事务的支持。
+
+
+session/transaction.go 封装事务的 Begin、Commit 和 Rollback 三个接口。
+
+- 调用 s.db.Begin() 得到 *sql.Tx 对象，赋值给 s.tx。
+- 封装的另一个目的是统一打印日志，方便定位问题。
+### 

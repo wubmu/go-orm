@@ -7,11 +7,12 @@ import (
 	"orm/session"
 )
 
-// Engine is the main struct of geeorm, manages all db sessions and transactions.
+// Engine is the main struct of orm, manages all db sessions and transactions.
 type Engine struct {
 	db      *sql.DB
 	dialect dialect.Dialect
 }
+type TxFunc func(*session.Session) (interface{}, error)
 
 // NewEngine create a instance of Engine
 // connect database and ping it to test whether it's alive
@@ -48,4 +49,23 @@ func (engine *Engine) Close() {
 // NewSession creates a new session for next operations
 func (engine *Engine) NewSession() *session.Session {
 	return session.New(engine.db, engine.dialect)
+}
+
+func (engine Engine) Transaction(f TxFunc) (result interface{}, err error) {
+	s := engine.NewSession()
+	if err := s.Begin(); err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			_ = s.Rollback()
+			panic(p) //re-throw panic after Rollback
+		} else if err != nil {
+			_ = s.Rollback() // err is non-nil; don't change it
+		} else {
+			err = s.Commit() // err is nil; if Commit returns error update err
+		}
+	}()
+	return f(s)
 }
